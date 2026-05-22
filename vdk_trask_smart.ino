@@ -5,7 +5,6 @@ const char* ssid = "Van Hai";
 const char* password = "15924858";
 WiFiServer server(80);
 
-// --- Khai báo chân ---
 #define LID_SERVO_PIN 13   
 #define SORT_SERVO_PIN 12 
 
@@ -21,9 +20,8 @@ WiFiServer server(80);
 Servo lidServo;
 Servo sortServo;
 
-// --- CÀI ĐẶT GÓC CHO SG90 ---
-int gocDongNap = 0;   
-int gocMoNap = 85;    
+int gocDongNap = 15;   
+int gocMoNap = 95;    
 
 int distToOpen = 15;
 int distFull = 10;
@@ -31,6 +29,10 @@ int distFull = 10;
 bool needToScan = false; 
 unsigned long previousMillis = 0;
 bool ledState = LOW;
+
+// BIẾN TOÀN CỤC ĐỂ LƯU KHOẢNG CÁCH RÁC
+int currentDistBin1 = 999;
+int currentDistBin2 = 999;
 
 void setup() {
   Serial.begin(115200);
@@ -64,6 +66,10 @@ int getDistance(int trigPin, int echoPin) {
 }
 
 void loop() {
+  // Lấy khoảng cách rác liên tục
+  currentDistBin1 = getDistance(TRIG_BIN1, ECHO_BIN1);
+  currentDistBin2 = getDistance(TRIG_BIN2, ECHO_BIN2);
+
   WiFiClient client = server.available();
   if (client) {
     if (client.connected() && client.available()) {
@@ -73,8 +79,14 @@ void loop() {
         client.println("HTTP/1.1 200 OK");
         client.println("Content-Type: text/plain");
         client.println();
-        if (needToScan) client.println("SCAN");
-        else client.println("IDLE");
+        
+        // KIỂM TRA TRẠNG THÁI VÀ GỘP CHUỖI GỬI CHO PYTHON
+        String status1 = (currentDistBin1 < distFull) ? "DA DAY" : "Binh Thuong";
+        String status2 = (currentDistBin2 < distFull) ? "DA DAY" : "Binh Thuong";
+        String scanFlag = needToScan ? "SCAN" : "IDLE";
+        
+        // Gửi chuỗi dạng: "SCAN,Binh Thuong,DA DAY"
+        client.print(scanFlag + "," + status1 + "," + status2);
       } 
       else if (request.indexOf("GET /H") != -1) {
         client.println("HTTP/1.1 200 OK"); client.println(); client.println("OK");
@@ -90,33 +102,21 @@ void loop() {
     client.stop();
   }
 
-  // 2. Cảm biến Mở Nắp (DÙNG FULL SỨC MẠNH - KHÔNG QUÉT TỪ TỪ)
+  // Cảm biến Mở Nắp
   int distOpen = getDistance(TRIG_OPEN, ECHO_OPEN);
-  
   if (distOpen > 0 && distOpen < distToOpen) {
     Serial.println("PHAT HIEN TAY! Bật nắp FULL POWER!");
-    
-    // Đẩy thẳng lên 85 độ ngay lập tức
     lidServo.write(gocMoNap);
-    
-    delay(4000);        // Đợi 4 giây 
-    
+    delay(4000);        
     Serial.println("Đóng nắp!");
-    
-    // Đóng thẳng về 0 độ
     lidServo.write(gocDongNap);
-    
     delay(1000);
     needToScan = true;  
   }
 
-  // 3. Cảm biến Báo Đầy
-  int distBin1 = getDistance(TRIG_BIN1, ECHO_BIN1);
-  int distBin2 = getDistance(TRIG_BIN2, ECHO_BIN2);
-
+  // Nháy đèn LED
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= 300) { previousMillis = currentMillis; ledState = !ledState; }
-
-  if (distBin1 < distFull) digitalWrite(LED_BIN1, ledState); else digitalWrite(LED_BIN1, LOW);
-  if (distBin2 < distFull) digitalWrite(LED_BIN2, ledState); else digitalWrite(LED_BIN2, LOW);
+  if (currentDistBin1 < distFull) digitalWrite(LED_BIN1, ledState); else digitalWrite(LED_BIN1, LOW);
+  if (currentDistBin2 < distFull) digitalWrite(LED_BIN2, ledState); else digitalWrite(LED_BIN2, LOW);
 }
