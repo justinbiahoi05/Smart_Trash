@@ -81,3 +81,10 @@ The team evaluated the prototype on a small set of **50 waste samples** (25 orga
 ## Project context
 
 Academic team project — Microcontroller course, Da Nang University of Science and Technology (DUT), 2026. The main technical account comes from the accompanying course report and the documented `app.py` / ESP32 firmware behavior. Individual roles should only be added after the team confirms them.
+
+## 📄 Documentation
+
+For detailed system architecture, hardware design,
+implementation, and experimental results:
+
+📘 [Full Project Report (PDF)](docs/VDK.pdf)
